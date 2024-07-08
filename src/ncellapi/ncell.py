@@ -1,26 +1,26 @@
 import logging
 import sqlite3
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable, TypeVar, cast
 from urllib.parse import urljoin
 
 import requests
 from pydantic import ValidationError
 
 from ncellapi.models.balance import QueryBalanceResponse
-from ncellapi.models.freesms import SMSCountResponse
 from ncellapi.models.login import LoginCheckResponse, LoginResponse
-from ncellapi.models.ncell import NcellResponse
-from ncellapi.models.smsvalidator import (
+from ncellapi.models.ncell import BaseResponse, NcellResponse
+from ncellapi.models.sms_model import (
+    SMSCountResponse,
     SMSPayload,
     SMSSendResponse,
     SMSValidationResponse,
 )
-from ncellapi.models.usagedetail import UsageDetailResponse
+from ncellapi.models.usage_detail import UsageDetailResponse
 from ncellapi.ncell_api import NcellAPI
 from ncellapi.signcode import generate_signcode
 
-SERVER_ERROR = {"custom_msg": "Invalid response from server"}
+SERVER_RESPONSE_VALIDATION_ERROR = {"reason": "Invalid response from server"}
 
 
 logging.basicConfig(level=logging.INFO)
@@ -29,6 +29,18 @@ logger = logging.getLogger("ncellapi")
 
 class NetworkError(Exception):
     pass
+
+
+T = TypeVar("T", bound=Callable[..., Any])
+
+
+def login_required(func: T) -> T:
+    def wrapper(self: "Ncell", *args: Any, **kwargs: Any) -> Any:
+        if not self._is_logged_in:
+            return NcellResponse(status="error", message="User not logged in")
+        return func(self, *args, **kwargs)
+
+    return cast(T, wrapper)
 
 
 class Ncell(NcellAPI):
@@ -139,7 +151,7 @@ class Ncell(NcellAPI):
             except ValidationError as e:
                 logger.error(f"Validation error: {e.errors()}")
                 errors = e.errors(include_url=False, include_input=False)
-                errors.insert(0, SERVER_ERROR)
+                errors.insert(0, SERVER_RESPONSE_VALIDATION_ERROR)
                 return NcellResponse(status="error", message=errors, data=data)
 
             if int(login_data.resultCode) == 0:
@@ -163,12 +175,10 @@ class Ncell(NcellAPI):
                 message=login_data.resultDesc,
                 data=login_data.model_dump(),
             )
-        return NcellResponse(status="error", message="Login failed", data=res.json())
+        return NcellResponse(status="error", message="Login failed", data=res.text)
 
+    @login_required
     def balance(self) -> NcellResponse:
-        if not self._is_logged_in:
-            return NcellResponse(status="error", message="User not logged in")
-
         endpoint = "/api/billing/queryAcctBal"
         self.update_headers(
             {
@@ -181,36 +191,10 @@ class Ncell(NcellAPI):
             }
         )
         res = self.post_request(endpoint, {})
-        if res.ok:
-            data = res.json()
-            try:
-                balance_response = QueryBalanceResponse(**data)
-            except ValidationError as e:
-                logger.error(f"Validation error: {e.errors()}")
-                errors = e.errors(include_url=False, include_input=False)
-                errors.insert(0, SERVER_ERROR)
-                return NcellResponse(status="error", message=errors, data=data)
+        return self._handle_response(res, QueryBalanceResponse, "Balance retrieved")
 
-            if int(balance_response.resultCode) == 0:
-                return NcellResponse(
-                    status="success",
-                    message="Balance retrieved",
-                    data=balance_response.model_dump(),
-                )
-            return NcellResponse(
-                status="error",
-                message=balance_response.resultDesc,
-                data=balance_response.model_dump(),
-            )
-
-        return NcellResponse(
-            status="error", message="Failed to retrieve balance", data=res.json()
-        )
-
+    @login_required
     def usage_detail(self) -> NcellResponse:
-        if not self._is_logged_in:
-            return NcellResponse(status="error", message="User not logged in")
-
         endpoint = "/api/billing/qryUsageDetail"
         self.update_headers(
             {
@@ -223,35 +207,10 @@ class Ncell(NcellAPI):
             }
         )
         res = self.post_request(endpoint, {})
-        if res.ok:
-            data = res.json()
-            try:
-                usage_detail_response = UsageDetailResponse(**data)
-            except ValidationError as e:
-                logger.error(f"Validation error: {e.errors()}")
-                errors = e.errors(include_url=False, include_input=False)
-                errors.insert(0, SERVER_ERROR)
-                return NcellResponse(status="error", message=errors, data=data)
-            if int(usage_detail_response.resultCode) == 0:
-                return NcellResponse(
-                    status="success",
-                    message="Usage detail retrieved",
-                    data=usage_detail_response.model_dump(),
-                )
-            return NcellResponse(
-                status="error",
-                message=usage_detail_response.resultDesc,
-                data=usage_detail_response.model_dump(),
-            )
+        return self._handle_response(res, UsageDetailResponse, "Usage detail retrieved")
 
-        return NcellResponse(
-            status="error", message="Failed to retrieve usage detail", data=res.json()
-        )
-
+    @login_required
     def sms_count(self) -> NcellResponse:
-        if not self._is_logged_in:
-            return NcellResponse(status="error", message="User not logged in")
-
         endpoint = "/api/system/sendSMSRestCount"
         self.update_headers(
             {
@@ -264,38 +223,12 @@ class Ncell(NcellAPI):
             }
         )
         res = self.post_request(endpoint, {})
-        if res.ok:
-            data = res.json()
-            try:
-                sms_count_response = SMSCountResponse(**data)
-            except ValidationError as e:
-                logger.error(f"Validation error: {e.errors()}")
-                errors = e.errors(include_url=False, include_input=False)
-                errors.insert(0, SERVER_ERROR)
-                return NcellResponse(status="error", message=errors, data=data)
-            if int(sms_count_response.resultCode) == 0:
-                return NcellResponse(
-                    status="success",
-                    message="SMS count retrieved",
-                    data=sms_count_response.model_dump(),
-                )
-            return NcellResponse(
-                status="error",
-                message=sms_count_response.resultDesc,
-                data=sms_count_response.model_dump(),
-            )
-        return NcellResponse(
-            status="error",
-            message="Failed to retrieve free sms quota count",
-            data=res.json(),
-        )
+        return self._handle_response(res, SMSCountResponse, "SMS count retrieved")
 
+    @login_required
     def validate_sms(
         self, recipient_mssidn: int, message: str, send_time: str = ""
     ) -> NcellResponse:
-        if not self._is_logged_in:
-            return NcellResponse(status="error", message="User not logged in")
-
         endpoint = "/api/system/validate4SendSMS"
         payload = {"ACC_NBR": recipient_mssidn, "MSG": message, "SEND_TIME": send_time}
 
@@ -326,7 +259,7 @@ class Ncell(NcellAPI):
             except ValidationError as e:
                 logger.error(f"Validation error: {e.errors()}")
                 errors = e.errors(include_url=False, include_input=False)
-                errors.insert(0, SERVER_ERROR)
+                errors.insert(0, SERVER_RESPONSE_VALIDATION_ERROR)
                 return NcellResponse(status="error", message=errors, data=data)
             if int(validate_sms_response.result.CODE) == 0:
                 return NcellResponse(
@@ -344,12 +277,10 @@ class Ncell(NcellAPI):
             status="error", message="Failed to validate SMS", data=res.json()
         )
 
+    @login_required
     def send_sms(
         self, recipient_mssidn: int, message: str, send_time: str = ""
     ) -> NcellResponse:
-        if not self._is_logged_in:
-            return NcellResponse(status="error", message="User not logged in")
-
         validation_response = self.validate_sms(recipient_mssidn, message, send_time)
 
         if validation_response.status != "success":
@@ -378,27 +309,36 @@ class Ncell(NcellAPI):
             }
         )
         res = self.post_request(endpoint, payload)
-        if res.ok:
-            data = res.json()
-            try:
-                send_sms_response = SMSSendResponse(**data)
-            except ValidationError as e:
-                logger.error(f"Validation error: {e.errors()}")
-                errors = e.errors(include_url=False, include_input=False)
-                errors.insert(0, SERVER_ERROR)
-                return NcellResponse(status="error", message=errors, data=data)
-            if int(send_sms_response.resultCode) == 0:
-                return NcellResponse(
-                    status="success",
-                    message="SMS sent successfully",
-                    data=send_sms_response.model_dump(),
-                )
+        return self._handle_response(res, SMSSendResponse, "SMS sent successfully")
+
+    def _handle_response(
+        self, res: requests.Response, model: type[BaseResponse], success_message: str
+    ) -> NcellResponse:
+        if not res.ok:
+            logger.error(f"Error from server: {res.text}")
             return NcellResponse(
-                status="error",
-                message=send_sms_response.resultDesc,
-                data=send_sms_response.model_dump(),
+                status="error", message="Request failed", data=res.text
+            )
+
+        data = res.json()
+        try:
+            response_data = model(**data)
+        except ValidationError as e:
+            logger.error(f"Validation error: {e.errors()}")
+
+            errors = e.errors(include_url=False, include_input=False)
+            errors.insert(0, SERVER_RESPONSE_VALIDATION_ERROR)
+            return NcellResponse(status="error", message=errors, data=data)
+
+        if int(response_data.resultCode) == 0:
+            return NcellResponse(
+                status="success",
+                message=success_message,
+                data=response_data.model_dump(),
             )
 
         return NcellResponse(
-            status="error", message="Failed to validate sms", data=res.json()
+            status="error",
+            message=response_data.resultDesc,
+            data=response_data.model_dump(),
         )

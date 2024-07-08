@@ -1,5 +1,3 @@
-from typing import List
-
 from pydantic import BaseModel
 
 
@@ -13,7 +11,7 @@ class Result(BaseModel):
     LOCAL_CONSUME_BAL: str
     LOCAL_BAL: str
     SMS_BAL: int
-    POINT_LIST: List[PointList]
+    POINT_LIST: list[PointList]
 
 
 class QueryBalanceResponse(BaseModel):
