@@ -35,6 +35,16 @@ T = TypeVar("T", bound=Callable[..., Any])
 
 
 def login_required(func: T) -> T:
+    """
+    Decorator to check if the user is logged in before executing the wrapped function.
+
+    Parameters:
+        func (T): The function to be wrapped.
+
+    Returns:
+        T: The wrapped function.
+    """
+
     def wrapper(self: "Ncell", *args: Any, **kwargs: Any) -> Any:
         if not self._is_logged_in:
             return NcellResponse(status="error", message="User not logged in")
@@ -45,6 +55,16 @@ def login_required(func: T) -> T:
 
 class Ncell(NcellAPI):
     def __init__(self, msisdn: int, password: str):
+        """
+        Initializes the Ncell object with the provided MSISDN and password.
+
+        Parameters:
+            msisdn (int): The MSISDN number.
+            password (str): The password associated with the MSISDN.
+
+        Returns:
+            None
+        """
         super().__init__()
         self._session = requests.Session()
         self._msisdn = msisdn
@@ -55,10 +75,26 @@ class Ncell(NcellAPI):
         package_dir = Path(__file__).parent
         db_file = package_dir / "cache.db"
         self._db_connection = sqlite3.connect(db_file, check_same_thread=False)
-        # self._cursor = self._db_connection.cursor()
         self.create_table()
 
     def create_table(self) -> None:
+        """
+        Creates a table named 'ncell' in the database if it doesn't already exist.
+
+        This function uses the `_db_connection` attribute to execute a SQL query that
+        creates a table named 'ncell' with the following columns:
+        - 'id' (INTEGER): The primary key of the table.
+        - 'session_id' (TEXT): The session ID.
+        - 'token_id' (TEXT): The token ID.
+        - 'created_at' (DATETIME): The timestamp of when the row was created.
+        - 'updated_at' (DATETIME): The timestamp of when the row was last updated.
+
+        Parameters:
+            None.
+
+        Returns:
+            None.
+        """
         with self._db_connection:
             self._db_connection.execute(
                 """CREATE TABLE IF NOT EXISTS ncell (
@@ -72,6 +108,19 @@ class Ncell(NcellAPI):
             )
 
     def _save_ids_to_db(self, session_id: str, token_id: str) -> None:
+        """
+        Saves the session ID and token ID to the database.
+
+        This function inserts a new row into the 'ncell' table with the provided session ID and token ID.
+        If a row with the same ID already exists, it updates the session ID and token ID columns with the new values.
+
+        Parameters:
+            session_id (str): The session ID to be saved.
+            token_id (str): The token ID to be saved.
+
+        Returns:
+            None
+        """
         with self._db_connection:
             self._db_connection.execute(
                 """INSERT INTO ncell (id, session_id, token_id, created_at, updated_at)
@@ -84,6 +133,16 @@ class Ncell(NcellAPI):
             )
 
     def _get_ids_from_db(self) -> tuple[str | None, str | None]:
+        """
+        Retrieves the session ID and token ID from the database for the given MSISDN.
+
+        This function executes a SQL query to retrieve the session ID and token ID from the 'ncell' table
+        where the ID matches the provided MSISDN. If a row is found, it returns a tuple containing the session ID
+        and token ID. If no row is found, it returns a tuple with None values.
+
+        Returns:
+            tuple[str | None, str | None]: A tuple containing the session ID and token ID, or None values if no row is found.
+        """
         cursor = self._db_connection.cursor()
         cursor.execute(
             """SELECT session_id, token_id FROM ncell WHERE id=?""", (self._msisdn,)
@@ -95,6 +154,16 @@ class Ncell(NcellAPI):
         return None, None
 
     def post_request(self, endpoint: str, data: dict[str, Any]) -> requests.Response:
+        """
+        Sends a POST request to the specified endpoint with the provided data.
+
+        Args:
+            endpoint (str): The endpoint to send the request to.
+            data (dict): The data payload to be sent with the request.
+
+        Returns:
+            requests.Response: The response object from the POST request.
+        """
         try:
             return self._session.post(
                 url=urljoin(self.base_url, endpoint), headers=self.headers, json=data
@@ -104,6 +173,18 @@ class Ncell(NcellAPI):
             raise NetworkError(f"Error in network request: {e}")
 
     def check_login_status(self) -> bool:
+        """
+        Check the login status by retrieving session ID and token ID from the database.
+        If session ID or token ID is missing, return False.
+        Send a POST request to the '/api/system/isLogin' endpoint with the generated signcode.
+        If the response is not okay, log the error and return False.
+        Parse the response data and validate it using the LoginCheckResponse model.
+        If the validation fails or the resultCode is not 0, update headers and return False.
+        Set the '_is_logged_in' flag to True and return True if login is successful.
+
+        Returns:
+            bool: True if login is successful, False otherwise.
+        """
         session_id, token_id = self._get_ids_from_db()
         if not session_id or not token_id:
             return False
@@ -133,6 +214,21 @@ class Ncell(NcellAPI):
         return True
 
     def login(self) -> NcellResponse:
+        """
+        Logs in the user with the provided username and password.
+
+        Returns:
+            NcellResponse: The response object containing the status, message, and data of the login attempt.
+                - If the user is already logged in, returns a success message with the existing user session.
+                - If the login attempt is successful, saves the session ID and token ID to the database,
+                  updates the headers with the new session ID and token ID, and returns a success message
+                  with the logged in customer's name.
+                - If the login attempt fails, returns an error message with the corresponding error code
+                  and description from the server response.
+                - If there is an error during the validation of the server response, returns an error message
+                  with the validation errors.
+                - If there is an error during the login request, returns an error message with the error text.
+        """
         if self.check_login_status():
             return NcellResponse("success", "Using existing user session")
 
@@ -179,6 +275,17 @@ class Ncell(NcellAPI):
 
     @login_required
     def balance(self) -> NcellResponse:
+        """
+        Retrieves the balance of the user's account.
+
+        This method sends a POST request to the `/api/billing/queryAcctBal` endpoint to retrieve the balance of the user's account. It requires the user to be logged in.
+
+        Returns:
+            NcellResponse: A response object containing the status, message, and data of the balance retrieval. The status can be "success" or "error". The message provides information about the outcome of the balance retrieval. The data contains the balance information.
+
+        Note:
+            This function requires the user to be logged in.
+        """
         endpoint = "/api/billing/queryAcctBal"
         self.update_headers(
             {
@@ -195,6 +302,19 @@ class Ncell(NcellAPI):
 
     @login_required
     def usage_detail(self) -> NcellResponse:
+        """
+        Retrieves the usage detail of the user.
+
+        This function sends a POST request to the `/api/billing/qryUsageDetail` endpoint to retrieve the usage detail of the user.
+        It first updates the headers with the necessary information, including the `SESSION-ID`, `TOKEN-ID`, and the `signcode` generated using the `generate_signcode` function.
+        Then, it sends the request using the `post_request` method and handles the response using the `_handle_response` method.
+
+        Returns:
+            NcellResponse: The response object containing the usage detail.
+
+        Note:
+            This function requires the user to be logged in.
+        """
         endpoint = "/api/billing/qryUsageDetail"
         self.update_headers(
             {
@@ -211,6 +331,19 @@ class Ncell(NcellAPI):
 
     @login_required
     def sms_count(self) -> NcellResponse:
+        """
+        Retrieves the count of SMS that can be sent by the user.
+
+        This function sends a POST request to the `/api/system/sendSMSRestCount` endpoint to retrieve the count of SMS that can be sent by the user.
+        It first updates the headers with the necessary information, including the `SESSION-ID`, `TOKEN-ID`, and the `signcode` generated using the `generate_signcode` function.
+        Then, it sends the request using the `post_request` method and handles the response using the `_handle_response` method.
+
+        Returns:
+            NcellResponse: The response object containing the count of SMS that can be sent.
+
+        Note:
+            This function requires the user to be logged in.
+        """
         endpoint = "/api/system/sendSMSRestCount"
         self.update_headers(
             {
@@ -229,6 +362,24 @@ class Ncell(NcellAPI):
     def validate_sms(
         self, recipient_mssidn: int, message: str, send_time: str = ""
     ) -> NcellResponse:
+        """
+        Validates an SMS message for sending to a recipient MSISDN.
+        This function sends a POST request to the `/api/system/validate4SendSMS` endpoint with the provided recipient MSISDN, message, and optional send time.
+        It validates the input payload using the `SMSPayload` model and handles validation errors by returning an error response.
+        The function updates the request headers with a signcode generated based on the session ID, endpoint, token ID, and payload.
+        After sending the request and receiving a response, it processes the validation result and returns an appropriate response object based on the validation outcome.
+
+        Parameters:
+            recipient_mssidn (int): The recipient's MSISDN number.
+            message (str): The message content to be sent.
+            send_time (str, optional): The scheduled time for sending the SMS.
+
+        Returns:
+            NcellResponse: The response object containing the validation result of the SMS.
+
+        Note:
+            This function requires the user to be logged in.
+        """
         endpoint = "/api/system/validate4SendSMS"
         payload = {"ACC_NBR": recipient_mssidn, "MSG": message, "SEND_TIME": send_time}
 
@@ -281,6 +432,33 @@ class Ncell(NcellAPI):
     def send_sms(
         self, recipient_mssidn: int, message: str, send_time: str = ""
     ) -> NcellResponse:
+        """
+        Sends an SMS to the specified recipient with the given message.
+
+        Args:
+            recipient_mssidn (int): The MSISDN number of the recipient.
+            message (str): The message to be sent.
+            send_time (str, optional): The time to send the SMS. Defaults to "".
+
+        Returns:
+            NcellResponse: A response object indicating the status of the SMS sending operation.
+                The response object has the following attributes:
+                - status (str): The status of the operation. Possible values are "success" or "error".
+                - message (str): A message describing the status of the operation.
+                - data (dict): Additional data related to the operation.
+
+        Note:
+            This function requires the user to be logged in.
+
+        Example:
+            >>> ncell = Ncell("9876543210", "strongpwd")
+            >>> ncell.login()
+            >>> response = ncell.send_sms(1234567890, "Hello, world!")
+            >>> print(response.status)
+            success
+            >>> print(response.message)
+            SMS sent successfully
+        """
         validation_response = self.validate_sms(recipient_mssidn, message, send_time)
 
         if validation_response.status != "success":
@@ -314,6 +492,24 @@ class Ncell(NcellAPI):
     def _handle_response(
         self, res: requests.Response, model: type[BaseResponse], success_message: str
     ) -> NcellResponse:
+        """
+        Handles the response from the server and returns a NcellResponse object.
+
+        Args:
+            res (requests.Response): The response object from the server.
+            model (type[BaseResponse]): The model class to use for deserializing the response data.
+            success_message (str): The success message to include in the NcellResponse object.
+
+        Returns:
+            NcellResponse: The NcellResponse object containing the status, message, and data of the response.
+                - If the response is not successful, returns an error message with the corresponding error code
+                  and description from the server response.
+                - If there is a validation error during deserialization, returns an error message with the validation
+                  errors.
+                - If the result code is 0, returns a success message with the data from the response.
+                - Otherwise, returns an error message with the result description from the response.
+
+        """
         if not res.ok:
             logger.error(f"Error from server: {res.text}")
             return NcellResponse(
