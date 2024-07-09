@@ -8,6 +8,7 @@ import requests
 from pydantic import ValidationError
 
 from ncellapi.models.balance import QueryBalanceResponse
+from ncellapi.models.credentials import NcellCredentials
 from ncellapi.models.login import LoginCheckResponse, LoginResponse
 from ncellapi.models.ncell import BaseResponse, NcellResponse
 from ncellapi.models.sms_model import (
@@ -65,11 +66,17 @@ class Ncell(NcellAPI):
         Returns:
             None
         """
+        try:
+            credentials = NcellCredentials(msisdn=msisdn, password=password)
+        except ValidationError as e:
+            raise ValueError(
+                f"Invalid credentials: {e.errors(include_url=False, include_context=False, include_input=False)}"
+            )
         super().__init__()
         self._session = requests.Session()
-        self._msisdn = msisdn
-        self._password = password
-        self._username = str(msisdn)
+        self._msisdn = credentials.msisdn
+        self._password = credentials.password
+        self._username = str(self._msisdn)
         self._is_logged_in = False
 
         package_dir = Path(__file__).parent
