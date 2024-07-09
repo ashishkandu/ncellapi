@@ -17,11 +17,45 @@ This library is not affiliated with, endorsed by, or supported by Ncell. Use it 
 
 ## Installation
 
-You can install NcellAPI from PyPI:
+### Installing from PyPI:
 
 ```sh
 pip install ncellapi
 ```
+
+### Installing from the source
+
+1. **Clone the Repository:**
+
+```sh
+git clone https://github.com/yourusername/ncellapi.git
+```
+
+2.**Install Poetry:**
+If you don't have Poetry installed, you can install it using the following command:
+
+```sh
+curl -sSL https://install.python-poetry.org | python3 -
+```
+
+3. **Install Dependencies and the Package:**
+Navigate to the project directory and install the dependencies and the package using Poetry:
+
+```sh
+cd ncellapi
+poetry install
+```
+
+4. **Activate the Virtual Environment:**
+Poetry creates a virtual environment for the project. You can activate it using the following command:
+
+```sh
+poetry shell
+```
+
+5. Run Your Code:
+
+Once the virtual environment is activated, you can run your code or scripts that use the ncellapi package.
 
 ## Usage
 
