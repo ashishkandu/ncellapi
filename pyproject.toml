@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "ncellapi"
-version = "0.1.0"
+version = "0.1.1"
 description = ""
 authors = ["Ashish Kandu <ashishkandu43@gmail.com>"]
 readme = "README.md"
@@ -8,7 +8,6 @@ packages = [{include = "ncellapi", from = "src"}]
 
 [tool.poetry.dependencies]
 python = "^3.12"
-fake-user-agent = "^2.2.0"
 requests = "^2.32.3"
 pydantic = "^2.8.2"
 
