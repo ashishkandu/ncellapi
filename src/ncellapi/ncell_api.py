@@ -1,7 +1,7 @@
 class NcellAPI:
     def __init__(self):
-        self.base_url = "https://customer.ncell.com.np"
-        self.headers = {
+        self._base_url = "https://customer.ncell.com.np"
+        self._headers = {
             "Accept": "*/*",
             "Accept-Language": "en",
             "Access-Control-Allow-Credentials": "true",
@@ -26,7 +26,7 @@ class NcellAPI:
             "signcode": "",
         }
 
-        self.login_json_data = {
+        self._login_json_data = {
             "ACC_NBR": "",
             "LOGIN_CODE": "",
             "MSG_TYPE": "SMS",
@@ -35,5 +35,5 @@ class NcellAPI:
             "CUST_TYPE": "S",
         }
 
-    def update_headers(self, headers: dict) -> None:
-        self.headers.update(headers)
+    def _update_headers(self, headers: dict) -> None:
+        self._headers.update(headers)

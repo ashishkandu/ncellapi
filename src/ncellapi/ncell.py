@@ -166,7 +166,7 @@ class Ncell(NcellAPI):
         """
         try:
             return self._session.post(
-                url=urljoin(self.base_url, endpoint), headers=self.headers, json=data
+                url=urljoin(self._base_url, endpoint), headers=self._headers, json=data
             )
         except requests.exceptions.RequestException as e:
             logger.error(f"Network error: {e}")
@@ -189,7 +189,7 @@ class Ncell(NcellAPI):
         if not session_id or not token_id:
             return False
         endpoint = "/api/system/isLogin"
-        self.update_headers(
+        self._update_headers(
             {
                 "SESSION-ID": session_id,
                 "TOKEN-ID": token_id,
@@ -208,7 +208,7 @@ class Ncell(NcellAPI):
             logger.error(f"Validation error: {e.errors()}")
             return False
         if int(login_check_response.resultCode) != 0:
-            self.update_headers({"SESSION-ID": "", "TOKEN-ID": ""})
+            self._update_headers({"SESSION-ID": "", "TOKEN-ID": ""})
             return False
         self._is_logged_in = True
         return True
@@ -233,13 +233,13 @@ class Ncell(NcellAPI):
             return NcellResponse("success", "Using existing user session")
 
         endpoint = "/api/login/loginWithSmsOrPWD"
-        self.login_json_data.update(
+        self._login_json_data.update(
             {"ACC_NBR": self._username, "LOGIN_CODE": self._password}
         )
-        self.update_headers(
-            {"signcode": generate_signcode("", endpoint, "", self.login_json_data)}
+        self._update_headers(
+            {"signcode": generate_signcode("", endpoint, "", self._login_json_data)}
         )
-        res = self._post_request(endpoint, data=self.login_json_data)
+        res = self._post_request(endpoint, data=self._login_json_data)
         if res.ok:
             data = res.json()
             try:
@@ -255,7 +255,7 @@ class Ncell(NcellAPI):
                     login_data.result.SESSION_ID, login_data.result.TOKEN_ID
                 )
                 self._is_logged_in = True
-                self.update_headers(
+                self._update_headers(
                     {
                         "SESSION-ID": login_data.result.SESSION_ID,
                         "TOKEN-ID": login_data.result.TOKEN_ID,
@@ -287,12 +287,12 @@ class Ncell(NcellAPI):
             This function requires the user to be logged in.
         """
         endpoint = "/api/billing/queryAcctBal"
-        self.update_headers(
+        self._update_headers(
             {
                 "signcode": generate_signcode(
-                    self.headers["SESSION-ID"],
+                    self._headers["SESSION-ID"],
                     endpoint,
-                    self.headers["TOKEN-ID"],
+                    self._headers["TOKEN-ID"],
                     {},
                 )
             }
@@ -316,12 +316,12 @@ class Ncell(NcellAPI):
             This function requires the user to be logged in.
         """
         endpoint = "/api/billing/qryUsageDetail"
-        self.update_headers(
+        self._update_headers(
             {
                 "signcode": generate_signcode(
-                    self.headers["SESSION-ID"],
+                    self._headers["SESSION-ID"],
                     endpoint,
-                    self.headers["TOKEN-ID"],
+                    self._headers["TOKEN-ID"],
                     {},
                 )
             }
@@ -345,12 +345,12 @@ class Ncell(NcellAPI):
             This function requires the user to be logged in.
         """
         endpoint = "/api/system/sendSMSRestCount"
-        self.update_headers(
+        self._update_headers(
             {
                 "signcode": generate_signcode(
-                    self.headers["SESSION-ID"],
+                    self._headers["SESSION-ID"],
                     endpoint,
-                    self.headers["TOKEN-ID"],
+                    self._headers["TOKEN-ID"],
                     {},
                 )
             }
@@ -392,12 +392,12 @@ class Ncell(NcellAPI):
                 message=e.errors(include_url=False, include_input=False),
             )
 
-        self.update_headers(
+        self._update_headers(
             {
                 "signcode": generate_signcode(
-                    self.headers["SESSION-ID"],
+                    self._headers["SESSION-ID"],
                     endpoint,
-                    self.headers["TOKEN-ID"],
+                    self._headers["TOKEN-ID"],
                     payload,
                 )
             }
@@ -476,12 +476,12 @@ class Ncell(NcellAPI):
                 message=e.errors(include_url=False, include_input=False),
             )
 
-        self.update_headers(
+        self._update_headers(
             {
                 "signcode": generate_signcode(
-                    self.headers["SESSION-ID"],
+                    self._headers["SESSION-ID"],
                     endpoint,
-                    self.headers["TOKEN-ID"],
+                    self._headers["TOKEN-ID"],
                     payload,
                 )
             }
