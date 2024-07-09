@@ -1,3 +1,3 @@
-from .ncell import Ncell
+from .ncell import Ncell, NetworkError
 
-__all__ = ["Ncell"]
+__all__ = ["Ncell", "NetworkError"]

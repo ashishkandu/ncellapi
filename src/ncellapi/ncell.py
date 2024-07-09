@@ -75,9 +75,9 @@ class Ncell(NcellAPI):
         package_dir = Path(__file__).parent
         db_file = package_dir / "cache.db"
         self._db_connection = sqlite3.connect(db_file, check_same_thread=False)
-        self.create_table()
+        self._create_table()
 
-    def create_table(self) -> None:
+    def _create_table(self) -> None:
         """
         Creates a table named 'ncell' in the database if it doesn't already exist.
 
@@ -153,7 +153,7 @@ class Ncell(NcellAPI):
             return session_id, token_id
         return None, None
 
-    def post_request(self, endpoint: str, data: dict[str, Any]) -> requests.Response:
+    def _post_request(self, endpoint: str, data: dict[str, Any]) -> requests.Response:
         """
         Sends a POST request to the specified endpoint with the provided data.
 
@@ -196,7 +196,7 @@ class Ncell(NcellAPI):
                 "signcode": generate_signcode(session_id, endpoint, token_id, {}),
             }
         )
-        res = self.post_request(endpoint, {})
+        res = self._post_request(endpoint, {})
         if not res.ok:
             logger.error(f"Unable to login. Error from server: {res.text}")
             return False
@@ -239,7 +239,7 @@ class Ncell(NcellAPI):
         self.update_headers(
             {"signcode": generate_signcode("", endpoint, "", self.login_json_data)}
         )
-        res = self.post_request(endpoint, data=self.login_json_data)
+        res = self._post_request(endpoint, data=self.login_json_data)
         if res.ok:
             data = res.json()
             try:
@@ -297,7 +297,7 @@ class Ncell(NcellAPI):
                 )
             }
         )
-        res = self.post_request(endpoint, {})
+        res = self._post_request(endpoint, {})
         return self._handle_response(res, QueryBalanceResponse, "Balance retrieved")
 
     @login_required
@@ -326,7 +326,7 @@ class Ncell(NcellAPI):
                 )
             }
         )
-        res = self.post_request(endpoint, {})
+        res = self._post_request(endpoint, {})
         return self._handle_response(res, UsageDetailResponse, "Usage detail retrieved")
 
     @login_required
@@ -355,7 +355,7 @@ class Ncell(NcellAPI):
                 )
             }
         )
-        res = self.post_request(endpoint, {})
+        res = self._post_request(endpoint, {})
         return self._handle_response(res, SMSCountResponse, "SMS count retrieved")
 
     @login_required
@@ -402,7 +402,7 @@ class Ncell(NcellAPI):
                 )
             }
         )
-        res = self.post_request(endpoint, payload)
+        res = self._post_request(endpoint, payload)
         if res.ok:
             data = res.json()
             try:
@@ -451,7 +451,7 @@ class Ncell(NcellAPI):
             This function requires the user to be logged in.
 
         Example:
-            >>> ncell = Ncell("9876543210", "strongpwd")
+            >>> ncell = Ncell(9876543210, "strongpwd")
             >>> ncell.login()
             >>> response = ncell.send_sms(1234567890, "Hello, world!")
             >>> print(response.status)
@@ -486,7 +486,7 @@ class Ncell(NcellAPI):
                 )
             }
         )
-        res = self.post_request(endpoint, payload)
+        res = self._post_request(endpoint, payload)
         return self._handle_response(res, SMSSendResponse, "SMS sent successfully")
 
     def _handle_response(
