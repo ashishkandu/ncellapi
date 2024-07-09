@@ -17,7 +17,7 @@ class SMSPayload(BaseModel):
 class ValidationResult(BaseModel):
     CODE: str
     DESC: str
-    IS_NCELL_FLAG: str | None
+    IS_NCELL_FLAG: str | None = Field(default=None)
 
 
 class SMSValidationResponse(BaseModel):
