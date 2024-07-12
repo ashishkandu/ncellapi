@@ -23,7 +23,7 @@ class ValidationResult(BaseModel):
 class SMSValidationResponse(BaseModel):
     resultCode: str
     resultDesc: str
-    result: ValidationResult
+    result: ValidationResult | None = Field(default=None)
 
 
 class SMSSendResponse(BaseModel):

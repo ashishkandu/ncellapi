@@ -419,18 +419,21 @@ class Ncell(NcellAPI):
                 errors = e.errors(include_url=False, include_input=False)
                 errors.insert(0, SERVER_RESPONSE_VALIDATION_ERROR)
                 return NcellResponse(status="error", message=errors, data=data)
-            if int(validate_sms_response.result.CODE) == 0:
+            if (
+                int(validate_sms_response.resultCode) == 0
+                and int(validate_sms_response.result.CODE) == 0
+            ):
                 return NcellResponse(
                     status="success",
                     message="SMS validation successful",
                     data=validate_sms_response.model_dump(),
                 )
-            return NcellResponse(
-                status="error",
-                message=validate_sms_response.result.DESC,
-                data=validate_sms_response.result.model_dump(),
-            )
-
+            if validate_sms_response.result is not None:
+                return NcellResponse(
+                    status="error",
+                    message=validate_sms_response.result.DESC,
+                    data=validate_sms_response.result.model_dump(),
+                )
         return NcellResponse(
             status="error", message="Failed to validate SMS", data=res.json()
         )
