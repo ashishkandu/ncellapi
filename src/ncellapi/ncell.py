@@ -323,7 +323,7 @@ class Ncell(NcellAPI):
         return self._handle_response(res, QueryBalanceResponse, "Balance retrieved")
 
     @login_required
-    def usage_detail(self) -> NcellResponse:
+    def usage_details(self) -> NcellResponse:
         """
         Retrieves the usage detail of the user.
 
@@ -352,9 +352,9 @@ class Ncell(NcellAPI):
         return self._handle_response(res, UsageDetailResponse, "Usage detail retrieved")
 
     @login_required
-    def sms_count(self) -> NcellResponse:
+    def free_sms_count(self) -> NcellResponse:
         """
-        Retrieves the count of SMS that can be sent by the user.
+        Retrieves the count of free SMS that can be sent by the user.
 
         This function sends a POST request to the `/api/system/sendSMSRestCount` endpoint to retrieve the count of SMS that can be sent by the user.
         It first updates the headers with the necessary information, including the `SESSION-ID`, `TOKEN-ID`, and the `signcode` generated using the `generate_signcode` function.
