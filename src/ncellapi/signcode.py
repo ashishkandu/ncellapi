@@ -1,11 +1,11 @@
 import hashlib
 import json
 import re
-from typing import Any
+from typing import Any, Dict, Optional
 
 
 def generate_signcode(
-    session_id: str, url: str, token_id: str, data: dict[str, Any] | None = None
+    session_id: str, url: str, token_id: str, data: Optional[Dict[str, Any]] = None
 ):
     """
     Generates the signcode based on the provided session_id, url, token_id, and data.
@@ -13,7 +13,7 @@ def generate_signcode(
         session_id (str): The SESSION-ID from session storage.
         url (str): The request URL.
         token_id (str): The TOKEN-ID from session storage.
-        data (dict, optional): The request data.
+        data (Dict, optional): The request data.
 
     Returns:
         str: The generated signcode.

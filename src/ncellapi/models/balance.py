@@ -1,4 +1,6 @@
-from pydantic import BaseModel
+from typing import List, Optional
+
+from pydantic import BaseModel, Field
 
 
 class PointList(BaseModel):
@@ -11,10 +13,10 @@ class Result(BaseModel):
     LOCAL_CONSUME_BAL: str
     LOCAL_BAL: str
     SMS_BAL: int
-    POINT_LIST: list[PointList]
+    POINT_LIST: List[PointList]
 
 
 class QueryBalanceResponse(BaseModel):
-    result: Result | None = None
+    result: Optional[Result] = Field(default=None)
     resultCode: str
     resultDesc: str

@@ -1,3 +1,5 @@
+from typing import Optional
+
 from pydantic import BaseModel, Field
 
 
@@ -13,7 +15,7 @@ class Result(BaseModel):
 class LoginResponse(BaseModel):
     resultCode: str
     resultDesc: str
-    result: Result | None = None
+    result: Optional[Result] = Field(default=None)
 
 
 class LoginCheckResponse(BaseModel):

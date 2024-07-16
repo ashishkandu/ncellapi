@@ -1,3 +1,6 @@
+from typing import Dict
+
+
 class NcellAPI:
     def __init__(self):
         self._base_url = "https://customer.ncell.com.np"
@@ -35,5 +38,14 @@ class NcellAPI:
             "CUST_TYPE": "S",
         }
 
-    def _update_headers(self, headers: dict) -> None:
+    def _update_headers(self, headers: Dict) -> None:
+        """
+        Updates the headers of the NcellAPI instance with the provided headers.
+
+        Parameters:
+            headers (Dict): A dictionary containing the headers to be updated.
+
+        Returns:
+            None: This function does not return anything.
+        """
         self._headers.update(headers)

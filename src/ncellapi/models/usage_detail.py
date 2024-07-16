@@ -1,17 +1,19 @@
+from typing import Dict, List, Optional, Union
+
 from pydantic import BaseModel, Field
 
 
 class Item(BaseModel):
     ACCT_RES_ID: str
     EXP_DATE: str
-    GROSS_BAL: str | float
-    CONSUME_BAL: str | float
+    GROSS_BAL: Union[str, float]
+    CONSUME_BAL: Union[str, float]
     UNIT_NAME: str
-    REAL_BAL: str | float
+    REAL_BAL: Union[str, float]
     ACCT_RES_NAME: str
 
 
 class UsageDetailResponse(BaseModel):
-    result: dict[str, list[Item] | dict] | None = Field(..., default=None)
+    result: Optional[Union[Dict[str, List[Item]], Dict]] = Field(default=None)
     resultCode: str
     resultDesc: str
