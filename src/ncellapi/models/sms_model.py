@@ -3,7 +3,7 @@ from typing_extensions import Annotated
 
 
 class SMSCountResponse(BaseModel):
-    result: int
+    result: int | None = Field(..., default=None)
     resultCode: str
     resultDesc: str
 
