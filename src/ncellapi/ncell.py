@@ -1,7 +1,7 @@
 import logging
 import sqlite3
 from pathlib import Path
-from typing import Any, Callable, TypeVar, cast
+from typing import Any, Callable, Dict, Tuple, TypeVar, cast
 from urllib.parse import urljoin
 
 import requests
@@ -139,7 +139,7 @@ class Ncell(NcellAPI):
                 (self._msisdn, session_id, token_id),
             )
 
-    def _get_ids_from_db(self) -> tuple[str | None, str | None]:
+    def _get_ids_from_db(self) -> Tuple[str | None, str | None]:
         """
         Retrieves the session ID and token ID from the database for the given MSISDN.
 
@@ -148,7 +148,7 @@ class Ncell(NcellAPI):
         and token ID. If no row is found, it returns a tuple with None values.
 
         Returns:
-            tuple[str | None, str | None]: A tuple containing the session ID and token ID, or None values if no row is found.
+            Tuple[str | None, str | None]: A tuple containing the session ID and token ID, or None values if no row is found.
         """
         cursor = self._db_connection.cursor()
         cursor.execute(
@@ -160,13 +160,13 @@ class Ncell(NcellAPI):
             return session_id, token_id
         return None, None
 
-    def _post_request(self, endpoint: str, data: dict[str, Any]) -> requests.Response:
+    def _post_request(self, endpoint: str, data: Dict[str, Any]) -> requests.Response:
         """
         Sends a POST request to the specified endpoint with the provided data.
 
         Args:
             endpoint (str): The endpoint to send the request to.
-            data (dict): The data payload to be sent with the request.
+            data (Dict): The data payload to be sent with the request.
 
         Returns:
             requests.Response: The response object from the POST request.
@@ -237,7 +237,9 @@ class Ncell(NcellAPI):
                 - If there is an error during the login request, returns an error message with the error text.
         """
         if self.check_login_status():
-            return NcellResponse("success", "Using existing user session")
+            return NcellResponse(
+                status="success", message="Using existing user session"
+            )
 
         endpoint = "/api/login/loginWithSmsOrPWD"
         self._login_json_data.update(
@@ -248,14 +250,23 @@ class Ncell(NcellAPI):
         )
         res = self._post_request(endpoint, data=self._login_json_data)
         if res.ok:
-            data = res.json()
             try:
+                data = res.json()
                 login_data = LoginResponse(**data)
             except ValidationError as e:
                 logger.error(f"Validation error: {e.errors()}")
                 errors = e.errors(include_url=False, include_input=False)
                 errors.insert(0, SERVER_RESPONSE_VALIDATION_ERROR)
-                return NcellResponse(status="error", message=errors, data=data)
+                return NcellResponse(
+                    status="error",
+                    message="Failed to validate login response",
+                    errors=errors,
+                )
+            except ValueError:
+                logger.error("Invalid JSON response")
+                return NcellResponse(
+                    status="error", message="Invalid login JSON response"
+                )
 
             if int(login_data.resultCode) == 0:
                 self._save_ids_to_db(
@@ -271,14 +282,18 @@ class Ncell(NcellAPI):
                 return NcellResponse(
                     status="success",
                     message=f"Logged in as {login_data.result.CUST_NAME}",
-                    data=login_data.model_dump(),
+                    data=login_data,
                 )
             return NcellResponse(
                 status="error",
                 message=login_data.resultDesc,
-                data=login_data.model_dump(),
+                data=login_data,
             )
-        return NcellResponse(status="error", message="Login failed", data=res.text)
+        try:
+            error_message = res.json()
+        except ValueError:
+            error_message = res.text
+        return NcellResponse(status="error", message=error_message)
 
     @login_required
     def balance(self) -> NcellResponse:
@@ -396,7 +411,8 @@ class Ncell(NcellAPI):
             logger.error(f"Validation error: {e.errors()}")
             return NcellResponse(
                 status="error",
-                message=e.errors(include_url=False, include_input=False),
+                message="Failed to validate SMS payload",
+                errors=e.errors(include_url=False, include_input=False),
             )
 
         self._update_headers(
@@ -418,7 +434,11 @@ class Ncell(NcellAPI):
                 logger.error(f"Validation error: {e.errors()}")
                 errors = e.errors(include_url=False, include_input=False)
                 errors.insert(0, SERVER_RESPONSE_VALIDATION_ERROR)
-                return NcellResponse(status="error", message=errors, data=data)
+                return NcellResponse(
+                    status="error",
+                    message="Failed to validate SMS validation response",
+                    errors=errors,
+                )
             if (
                 int(validate_sms_response.resultCode) == 0
                 and int(validate_sms_response.result.CODE) == 0
@@ -426,17 +446,20 @@ class Ncell(NcellAPI):
                 return NcellResponse(
                     status="success",
                     message="SMS validation successful",
-                    data=validate_sms_response.model_dump(),
+                    data=validate_sms_response,
                 )
             if validate_sms_response.result is not None:
                 return NcellResponse(
                     status="error",
                     message=validate_sms_response.result.DESC,
-                    data=validate_sms_response.result.model_dump(),
+                    data=validate_sms_response.result,
                 )
-        return NcellResponse(
-            status="error", message="Failed to validate SMS", data=res.json()
-        )
+        else:
+            try:
+                error_message = res.json()
+            except ValueError:
+                error_message = res.text
+            return NcellResponse(status="error", message=error_message)
 
     @login_required
     def send_sms(
@@ -455,7 +478,7 @@ class Ncell(NcellAPI):
                 The response object has the following attributes:
                 - status (str): The status of the operation. Possible values are "success" or "error".
                 - message (str): A message describing the status of the operation.
-                - data (dict): Additional data related to the operation.
+                - data (Dict): Additional data related to the operation.
 
         Note:
             This function requires the user to be logged in.
@@ -477,14 +500,15 @@ class Ncell(NcellAPI):
         endpoint = "/api/system/sendSMS"
         payload = {"ACC_NBR": recipient_mssidn, "MSG": message, "SEND_TIME": send_time}
 
-        try:
-            payload = SMSPayload(**payload).model_dump()
-        except ValidationError as e:
-            logger.error(f"Validation error: {e.errors()}")
-            return NcellResponse(
-                status="error",
-                message=e.errors(include_url=False, include_input=False),
-            )
+        # try:
+        #     payload = SMSPayload(**payload).model_dump()
+        # except ValidationError as e:
+        #     logger.error(f"Validation error: {e.errors()}")
+        #     return NcellResponse(
+        #         status="error",
+        #         message="Failed to validate SMS payload",
+        #         errors=e.errors(include_url=False, include_input=False),
+        #     )
 
         self._update_headers(
             {
@@ -521,30 +545,46 @@ class Ncell(NcellAPI):
 
         """
         if not res.ok:
-            logger.error(f"Error from server: {res.text}")
-            return NcellResponse(
-                status="error", message="Request failed", data=res.text
-            )
+            try:
+                error_message = res.json()
+            except ValueError:
+                error_message = res.text
+            logger.error(f"Error from server: {error_message}")
+            return NcellResponse(status="error", message=error_message)
 
-        data = res.json()
         try:
+            data = res.json()
             response_data = model(**data)
         except ValidationError as e:
             logger.error(f"Validation error: {e.errors()}")
 
             errors = e.errors(include_url=False, include_input=False)
             errors.insert(0, SERVER_RESPONSE_VALIDATION_ERROR)
-            return NcellResponse(status="error", message=errors, data=data)
+            return NcellResponse(
+                status="error", message="Failed to validate response", errors=errors
+            )
+        except ValueError:
+            logger.error("Invalid JSON response")
+            return NcellResponse(
+                status="error", message="Invalid JSON response from server"
+            )
+
+        if not isinstance(response_data, model):
+            return NcellResponse(
+                status="error",
+                message="Failed to deserialize response data",
+                errors=[SERVER_RESPONSE_VALIDATION_ERROR],
+            )
 
         if int(response_data.resultCode) == 0:
             return NcellResponse(
                 status="success",
                 message=success_message,
-                data=response_data.model_dump(),
+                data=response_data,
             )
 
         return NcellResponse(
             status="error",
             message=response_data.resultDesc,
-            data=response_data.model_dump(),
+            data=response_data,
         )
