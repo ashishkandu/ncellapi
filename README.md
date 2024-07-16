@@ -14,6 +14,8 @@ This library is not affiliated with, endorsed by, or supported by Ncell. Use it 
 - Check free SMS quota
 - Send SMS
 - Validate SMS before sending
+- Pydantic model support for response validation
+- Conversion of responses to dictionary format
 
 ## Installation
 
@@ -69,23 +71,23 @@ ncell = Ncell(msisdn=1234567890, password='your_password')
 
 # Login to the Ncell system
 login_response = ncell.login()
-print(login_response)
+print(login_response.to_dict())
 
 # Check balance
 balance_response = ncell.balance()
-print(balance_response.data)
+print(balance_response.to_dict())
 
 # Get usage details
-usage_detail_response = ncell.usage_detail()
-print(usage_detail_response.data)
+usage_detail_response = ncell.usage_details()
+print(usage_detail_response.to_dict())
 
 # Check free SMS quota
-sms_count_response = ncell.sms_count()
-print(sms_count_response.data)
+sms_count_response = ncell.free_sms_count()
+print(sms_count_response.to_dict())
 
 # Send SMS
 send_sms_response = ncell.send_sms(recipient_mssidn=9876543210, message='Hello, this is a test message.')
-print(send_sms_response)
+print(send_sms_response.to_dict())
 ```
 
 ## Documentation
@@ -114,13 +116,13 @@ balance_response = ncell.balance()
 ### Get Usage Details
 
 ```python
-usage_detail_response = ncell.usage_detail()
+usage_detail_response = ncell.usage_details()
 ```
 
 ### Check Free SMS Quota
 
 ```python
-sms_count_response = ncell.sms_count()
+sms_count_response = ncell.free_sms_count()
 ```
 
 ### Send SMS
@@ -136,6 +138,16 @@ send_sms_response = ncell.send_sms(recipient_mssidn, message, send_time)
 ## Handling Errors
 
 The library raises NetworkError for network-related issues. Other errors are logged and handled within the response objects.
+
+```python
+try:
+    balance_response = ncell.balance()
+    print(balance_response.to_dict())
+except NetworkError as e:
+    print(f"Network error: {e}")
+except ValueError as e:
+    print(f"Validation error: {e}")
+```
 
 ## Contributing
 Contributions are welcome! Please feel free to submit a Pull Request.
