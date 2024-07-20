@@ -23,10 +23,9 @@ from ncellapi.ncell_api import NcellAPI
 from ncellapi.signcode import generate_signcode
 
 SERVER_RESPONSE_VALIDATION_ERROR = {"reason": "Invalid response from server"}
-UNAUNTHED_USER_ERROR = {"reason": "User not logged in"}
+UNAUTHED_USER_ERROR = {"reason": "User not logged in"}
 
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("ncellapi")
 
 
@@ -47,7 +46,7 @@ def login_required(func: T) -> T:
     def wrapper(self: "Ncell", *args: Any, **kwargs: Any) -> Any:
         if not self._is_logged_in:
             return NcellResponse(
-                status="error", message="Login required", errors=[UNAUNTHED_USER_ERROR]
+                status="error", message="Login required", errors=[UNAUTHED_USER_ERROR]
             )
         return func(self, *args, **kwargs)
 
