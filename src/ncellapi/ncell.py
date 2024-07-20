@@ -7,6 +7,7 @@ from urllib.parse import urljoin
 import requests
 from pydantic import ValidationError
 
+from ncellapi.exceptions import InvalidCredentialsError, NetworkError
 from ncellapi.models.balance import QueryBalanceResponse
 from ncellapi.models.credentials import NcellCredentials
 from ncellapi.models.login import LoginCheckResponse, LoginResponse
@@ -22,14 +23,11 @@ from ncellapi.ncell_api import NcellAPI
 from ncellapi.signcode import generate_signcode
 
 SERVER_RESPONSE_VALIDATION_ERROR = {"reason": "Invalid response from server"}
+UNAUNTHED_USER_ERROR = {"reason": "User not logged in"}
 
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("ncellapi")
-
-
-class NetworkError(Exception):
-    pass
 
 
 T = TypeVar("T", bound=Callable[..., Any])
@@ -48,7 +46,9 @@ def login_required(func: T) -> T:
 
     def wrapper(self: "Ncell", *args: Any, **kwargs: Any) -> Any:
         if not self._is_logged_in:
-            return NcellResponse(status="error", message="User not logged in")
+            return NcellResponse(
+                status="error", message="Login required", errors=[UNAUNTHED_USER_ERROR]
+            )
         return func(self, *args, **kwargs)
 
     return cast(T, wrapper)
@@ -63,15 +63,18 @@ class Ncell(NcellAPI):
             msisdn (int): The MSISDN number.
             password (str): The password associated with the MSISDN.
 
+        Raises:
+            InvalidCredentialsError: If the provided credentials are invalid.
+
         Returns:
             None
         """
+
         try:
             credentials = NcellCredentials(msisdn=msisdn, password=password)
         except ValidationError as e:
-            raise ValueError(
-                f"Invalid credentials: {e.errors(include_url=False, include_context=False, include_input=False)}"
-            )
+            error_message = f"Validation error occurred: {e.errors(include_url=False, include_context=False, include_input=False)}"
+            raise InvalidCredentialsError(error_message) from None
         super().__init__()
         self._session = requests.Session()
         self._msisdn = credentials.msisdn

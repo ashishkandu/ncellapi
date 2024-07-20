@@ -1,3 +1,4 @@
-from .ncell import Ncell, NetworkError
+from .exceptions import InvalidCredentialsError, NetworkError
+from .ncell import Ncell
 
-__all__ = ["Ncell", "NetworkError"]
+__all__ = ["Ncell", "NetworkError", "InvalidCredentialsError"]
