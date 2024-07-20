@@ -30,7 +30,7 @@ pip install ncellapi
 1. **Clone the Repository:**
 
 ```sh
-git clone https://github.com/yourusername/ncellapi.git
+git clone https://github.com/ashishkandu/ncellapi.git
 ```
 
 2.**Install Poetry:**
@@ -95,7 +95,13 @@ print(send_sms_response.to_dict())
 ### Initialization
 
 ```python
-ncell = Ncell(msisdn, password)
+from ncellapi import Ncell, InvalidCredentialsError
+
+try:
+    ncell = Ncell(msisdn, password)
+except InvalidCredentialsError as e:
+    print(f"Invalid credentials: {e}")
+
 ```
 
 * `msisdn`: Your Ncell mobile number.
@@ -104,7 +110,13 @@ ncell = Ncell(msisdn, password)
 ### Login
 
 ```python
-login_response = ncell.login()
+from ncellapi import NetworkError
+
+try:
+    login_response = ncell.login()
+    print(login_response.to_dict())
+except NetworkError as e:
+    print(f"Network error: {e}")
 ```
 
 ### Check Balance
@@ -137,16 +149,16 @@ send_sms_response = ncell.send_sms(recipient_mssidn, message, send_time)
 
 ## Handling Errors
 
-The library raises NetworkError for network-related issues. Other errors are logged and handled within the response objects.
+The library raises `InvalidCredentialsError` for invalid credentials and `NetworkError` for network-related issues. Other errors are logged and handled within the response objects.
 
 ```python
+from ncellapi import NetworkError
+
 try:
     balance_response = ncell.balance()
     print(balance_response.to_dict())
 except NetworkError as e:
     print(f"Network error: {e}")
-except ValueError as e:
-    print(f"Validation error: {e}")
 ```
 
 ## Contributing
